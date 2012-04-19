@@ -91,7 +91,9 @@ class AssetDiagnosis extends JApplicationWeb
 				<dl>
 				<dt></dt>Asset Table:</dt><dd>');
 				$query = $this->dbo->getQuery(true);
-				$query = 'SELECT count(a.id) FROM #__assets AS a WHERE a.parent_id = 0 AND a.name <> ' . $this->dbo->q('root.1');
+				$query->select('count(a.id)');
+				$query->from('#__assets AS a');
+				$query->where('a.parent_id = 0 AND a.name <> ' . $this->dbo->q('root.1'));
 				$this->dbo->setQuery($query);
 				if ( $this->dbo->loadResult() == 0 )
 					{ $this->appendBody( 'No');}
@@ -104,8 +106,11 @@ class AssetDiagnosis extends JApplicationWeb
 				$this->appendBody('
 				<dt>
 				Category Table:</dt><dd>');
+				$query = $this->dbo->getQuery(true);
+				$query->select( 'count(a.id)');
+				$query->from( $this->dbo->qn('#__categories'). ' AS a');
+				$query->where('a.parent_id = 0');
 
-				$query = 'SELECT count(a.id) FROM #__categories AS a WHERE a.parent_id = 0';
 				$this->dbo->setQuery($query);
 				if ($this->dbo->loadResult() == 1 )
 					{ $this->appendBody( 'No');}
@@ -119,10 +124,12 @@ class AssetDiagnosis extends JApplicationWeb
 				<p>Is there any category without an asset in the asset table?</p>
 				<p>If any extension is listed below it has at least one category without an asset.</p>
 				<dl>');
-
-				$query = 'SELECT c.id, c.extension FROM  `#__categories` AS c LEFT JOIN #__assets AS a ON c.asset_id = a.id
-						WHERE a.id IS NULL AND c.asset_id <> 0';
-								$this->dbo->setQuery($query);
+				$query = $this->dbo->getQuery(true);
+				$query->select('c.id, c.extension');
+				$query->from($this->dbo->qn('#__categories') . ' AS c');
+				$query->leftJoin('#__assets' .' AS a ON c.asset_id = a.id');
+				$query->where('a.id IS NULL AND c.asset_id <> 0');
+				$this->dbo->setQuery($query);
 				$extensions = $this->dbo->loadObjectList();
 
 				foreach($extensions as $extension):
@@ -140,11 +147,12 @@ class AssetDiagnosis extends JApplicationWeb
 				$this->appendBody('</li>
 			<li>
 				<p>Is there any article without an asset in the asset table? if yes we have a problem, if no things are good</p>');
-				$subquery = 'SELECT name FROM #__assets WHERE name LIKE ' . $this->dbo->q('%com_content.article.%');
 
-				$query = "SELECT count(a.id) FROM #__content a WHERE CONCAT('com_content.article.',a.id) NOT IN (".$subquery.')';
-				$query = 'SELECT count(c.id) FROM  `#__content` AS c LEFT JOIN #__assets AS a ON c.asset_id = a.id
-				WHERE a.id IS NULL';
+				$query = $this->dbo->getQuery(true);
+				$query-> select('count(c.id) ');
+				$query->from( $this->dbo->qn('#__content') .'AS c');
+				$query->leftJoin($this->dbo->qn('#__assets') .'AS a ON c.asset_id = a.id');
+				$query->where('a.id IS NULL');
 				$this->dbo->setQuery($query);
 				$this->appendBody('<dl><dd>');
 				if ($this->dbo->loadResult() == 0 )
@@ -167,16 +175,16 @@ class AssetDiagnosis extends JApplicationWeb
 			$this->appendBody('</li>
 			<li>
 				<p>Is there any category with an asset level of < 2? If  yes, there is a problem, if no, things are good</p>
-				<dl>');
-				foreach($extensions as $extension):
+				<dl><dd>');
 
-					 $this->appendBody('<dt>'. $extension->extension  . '</dt><dd>');
-
-					$query = 'SELECT count(a.id) FROM `y8x95_assets`  as a WHERE a.name LIKE '.  $this->dbo->q('%category%') . ' AND level  < 2 ';
+					$query = $this->dbo->getQuery(true);
+					$query->select('count(a.id)' );
+					$query->from('#__assets as a');
+					$query->where('a.name LIKE '.  $this->dbo->q('%category%') . ' AND level  < 2 ');
 					$this->dbo->setQuery($query);
-
 				if ($this->dbo->loadResult() == 0 )
-					{ $this->appendBody('No');}
+					{
+						$this->appendBody('No');}
 					else
 					{
 						$this->appendBody('Yes') ;
@@ -184,7 +192,7 @@ class AssetDiagnosis extends JApplicationWeb
 
 					$this->appendBody('
 					</dd>');
-				endforeach;
+
 				$this->appendBody('</dl>');
 				$this->appendBody('<p>If the answer is yes, try clicking the rebuild icon in any category manager.
 				Then refresh this page to see if the issue has been corrected. If it
@@ -194,15 +202,22 @@ class AssetDiagnosis extends JApplicationWeb
 			<li>
 				<p>Is there any article that has an asset level of < 3? If yes bad, if no good</p>
 				<dl><dd>');
-
-				$query = "SELECT count(a.id) FROM #__assets a WHERE a.level < 3 AND a.name LIKE " . $this->dbo->q('%com_content.article.%');
+				$query = $this->dbo->getQuery(true);
+				$query->select('count(a.id) FROM #__assets a ');
+				$query->where('a.level < 3 AND a.name LIKE ' . $this->dbo->q('%com_content.article.%'));
 				$this->dbo->setQuery($query);
 				if ($this->dbo->loadResult() == 0 )
-					{ $this->appendBody( 'No');}
-					else
-					{
-						$this->appendBody('Yes: ' . $this->dbo->loadResult() . 'articles') ;
-					}
+				{
+					$this->appendBody( 'No');
+				}
+				elseif ($this->dbo->loadResult() == 1 )
+				{
+					$this->appendBody( 'Yes ');
+				}
+				else
+				{
+					$this->appendBody('Yes: 1 article') ;
+				}
 			$this->appendBody('</dd></dl>');
 			$this->appendBody('<p>If you have a small number of problem articles, try opening and saving each article.
 			For larger numbers you may want to use bulk copy into a new category and then back to the old one.</p>');
@@ -211,11 +226,14 @@ class AssetDiagnosis extends JApplicationWeb
 		<p>Is there any asset for an article that has a parent_id that does not correspond to a category? if yes there is a problem,
 		 if no things are good.</p>');
 
-		$query= 'SELECT a.parent_id FROM ' . $this->dbo->qn('#__assets') . ' as a LEFT JOIN '
-		. $this->dbo->qn( '#__categories') .
-		' on a.parent_id = asset_id
-		 WHERE a.name LIKE '. $this->dbo->q('%com_content.article.%').'
-		 AND (  extension <> '. $this->dbo->q('com_content') .'  OR extension is null)';
+		$query = $this->dbo->getQuery(true);
+		$query->select('a.parent_id');
+		$query->from($this->dbo->qn('#__assets') . ' as a ');
+		$query->leftJoin($this->dbo->qn( '#__categories')
+			. ' on a.parent_id = asset_id');
+		 $query->where(' a.name LIKE '. $this->dbo->q('%com_content.article.%')
+			.'AND (  extension <> '. $this->dbo->q('com_content') .'  OR extension is null)');
+
 		$this->dbo->setQuery($query);
 		$results = $this->dbo->loadResult();
 		$this->appendBody('<dl><dd>');
