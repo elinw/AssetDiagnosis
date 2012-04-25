@@ -3,7 +3,7 @@
  * A JApplicationWeb application built on the Joomla Platform.
  *
  * To run this place it in the root of your Joomla CMS installation.
- * This application is buil
+ * This application runs some tests for common problems in the #__assets table.
  *
  * @package    Joomla.AssetDiagnosis
  * @copyright  Copyright (C) 2005 - 2011 Open Source Matters, Inc. All rights reserved.
